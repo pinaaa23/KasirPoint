@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "809628330215",
+    "project_id": "kasirpoint-c07d0",
+    "storage_bucket": "kasirpoint-c07d0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:809628330215:android:0f929b4d4260f7dc879a42",
+        "android_client_info": {
+          "package_name": "com.kasirpoint.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDB7--2eK7fHC9-WpfoVKIRm0dEzjbGEUw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
