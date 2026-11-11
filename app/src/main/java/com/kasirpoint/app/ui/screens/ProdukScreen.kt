@@ -73,7 +73,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -143,7 +142,6 @@ fun ProdukScreen(
                 )
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // Category Button with Distinct Border & Explicit ActionBrown Text Color
                     OutlinedButton(
                         onClick = { showCategoryDialog = true },
                         shape = CircleShape,
@@ -260,8 +258,10 @@ fun ProdukScreen(
         productToDelete?.let { prod ->
             AlertDialog(
                 onDismissRequest = { productToDelete = null },
-                title = { Text("Hapus Produk") },
-                text = { Text("Apakah Anda yakin ingin menghapus produk '${prod.nama}'?") },
+                shape = RoundedCornerShape(24.dp),
+                containerColor = SurfaceWhite,
+                title = { Text("Hapus Produk", color = TextDark, fontWeight = FontWeight.Bold) },
+                text = { Text("Apakah Anda yakin ingin menghapus produk '${prod.nama}'?", color = TextDark) },
                 confirmButton = {
                     Button(
                         onClick = {
@@ -270,12 +270,12 @@ fun ProdukScreen(
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = RedDanger)
                     ) {
-                        Text("Hapus")
+                        Text("Hapus", color = SurfaceWhite, fontWeight = FontWeight.Bold)
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { productToDelete = null }) {
-                        Text("Batal")
+                        Text("Batal", color = TextDark, fontWeight = FontWeight.Bold)
                     }
                 }
             )
@@ -466,12 +466,12 @@ private fun ProductFormDialog(
             ) {
                 Text(
                     text = if (product == null) "Tambah Produk Baru" else "Ubah Produk",
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = TextDark)
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Photo Upload Box (Gallery & Camera Enabled)
+                // Photo Upload Box
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -521,7 +521,7 @@ private fun ProductFormDialog(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Category Dropdown with High Contrast
+                // Category Dropdown
                 ExposedDropdownMenuBox(
                     expanded = categoryDropdownExpanded,
                     onExpandedChange = { categoryDropdownExpanded = !categoryDropdownExpanded }
@@ -637,7 +637,7 @@ private fun ProductFormDialog(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // Variants Section
-                Text("Varian & Harga Produk", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
+                Text("Varian & Harga Produk", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = TextDark))
                 Spacer(modifier = Modifier.height(4.dp))
                 Text("Tambahkan varian produk beserta harganya (contoh: Regular - Rp15.000, Large - Rp18.000).", style = MaterialTheme.typography.bodyMedium)
                 Spacer(modifier = Modifier.height(8.dp))
@@ -769,7 +769,7 @@ private fun ProductFormDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
                 ) {
-                    TextButton(onClick = onDismiss) { Text("Batal", color = TextMuted) }
+                    TextButton(onClick = onDismiss) { Text("Batal", color = TextDark, fontWeight = FontWeight.Bold) }
                     Spacer(modifier = Modifier.width(8.dp))
                     Button(
                         onClick = {
@@ -805,7 +805,9 @@ private fun ProductFormDialog(
         if (showImageSourceDialog) {
             AlertDialog(
                 onDismissRequest = { showImageSourceDialog = false },
-                title = { Text("Pilih Sumber Foto") },
+                shape = RoundedCornerShape(24.dp),
+                containerColor = SurfaceWhite,
+                title = { Text("Pilih Sumber Foto", color = TextDark, fontWeight = FontWeight.Bold) },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(
@@ -821,7 +823,7 @@ private fun ProductFormDialog(
                         ) {
                             Icon(imageVector = Icons.Default.PhotoLibrary, contentDescription = null, tint = PrimaryOrange)
                             Spacer(modifier = Modifier.width(12.dp))
-                            Text("Pilih dari Galeri HP", style = MaterialTheme.typography.bodyLarge)
+                            Text("Pilih dari Galeri HP", style = MaterialTheme.typography.bodyLarge.copy(color = TextDark, fontWeight = FontWeight.Medium))
                         }
 
                         Row(
@@ -837,7 +839,7 @@ private fun ProductFormDialog(
                         ) {
                             Icon(imageVector = Icons.Default.CameraAlt, contentDescription = null, tint = PrimaryOrange)
                             Spacer(modifier = Modifier.width(12.dp))
-                            Text("Ambil Foto dengan Kamera", style = MaterialTheme.typography.bodyLarge)
+                            Text("Ambil Foto dengan Kamera", style = MaterialTheme.typography.bodyLarge.copy(color = TextDark, fontWeight = FontWeight.Medium))
                         }
 
                         if (photoBase64.isNotEmpty()) {
@@ -854,14 +856,16 @@ private fun ProductFormDialog(
                             ) {
                                 Icon(imageVector = Icons.Default.Delete, contentDescription = null, tint = RedDanger)
                                 Spacer(modifier = Modifier.width(12.dp))
-                                Text("Hapus Foto Produk", style = MaterialTheme.typography.bodyLarge.copy(color = RedDanger))
+                                Text("Hapus Foto Produk", style = MaterialTheme.typography.bodyLarge.copy(color = RedDanger, fontWeight = FontWeight.Bold))
                             }
                         }
                     }
                 },
                 confirmButton = {},
                 dismissButton = {
-                    TextButton(onClick = { showImageSourceDialog = false }) { Text("Batal") }
+                    TextButton(onClick = { showImageSourceDialog = false }) {
+                        Text("Batal", color = TextDark, fontWeight = FontWeight.Bold)
+                    }
                 }
             )
         }
@@ -886,7 +890,7 @@ private fun CategoryFormDialog(
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
-                Text("Kelola Kategori Usaha", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold))
+                Text("Kelola Kategori Usaha", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, color = TextDark))
                 Spacer(modifier = Modifier.height(16.dp))
 
                 OutlinedTextField(
@@ -917,11 +921,11 @@ private fun CategoryFormDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Text("Daftar Kategori Tersimpan:", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
+                Text("Daftar Kategori Tersimpan:", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = TextDark))
                 Spacer(modifier = Modifier.height(8.dp))
 
                 if (categories.isEmpty()) {
-                    Text("Belum ada kategori tersimpan.", style = MaterialTheme.typography.bodyMedium)
+                    Text("Belum ada kategori tersimpan.", style = MaterialTheme.typography.bodyMedium.copy(color = TextMuted))
                 } else {
                     LazyColumn(
                         modifier = Modifier.height(180.dp),
@@ -962,7 +966,7 @@ private fun CategoryFormDialog(
 
                 Spacer(modifier = Modifier.height(20.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = onDismiss) { Text("Tutup") }
+                    TextButton(onClick = onDismiss) { Text("Tutup", color = TextDark, fontWeight = FontWeight.Bold) }
                 }
             }
         }
@@ -972,8 +976,10 @@ private fun CategoryFormDialog(
     categoryToDelete?.let { cat ->
         AlertDialog(
             onDismissRequest = { categoryToDelete = null },
-            title = { Text("Hapus Kategori") },
-            text = { Text("Apakah Anda yakin ingin menghapus kategori '${cat.nama}'?") },
+            shape = RoundedCornerShape(24.dp),
+            containerColor = SurfaceWhite,
+            title = { Text("Hapus Kategori", color = TextDark, fontWeight = FontWeight.Bold) },
+            text = { Text("Apakah Anda yakin ingin menghapus kategori '${cat.nama}'?", color = TextDark) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -982,12 +988,12 @@ private fun CategoryFormDialog(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = RedDanger)
                 ) {
-                    Text("Hapus")
+                    Text("Hapus", color = SurfaceWhite, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { categoryToDelete = null }) {
-                    Text("Batal")
+                    Text("Batal", color = TextDark, fontWeight = FontWeight.Bold)
                 }
             }
         )
