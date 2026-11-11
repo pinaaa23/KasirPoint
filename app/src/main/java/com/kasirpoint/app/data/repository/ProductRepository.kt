@@ -36,7 +36,7 @@ class ProductRepository(
 
     suspend fun saveCategory(uid: String, category: Category): Result<Unit> {
         return try {
-            val docRef = if (category.id.isEmpty()) {
+            val docRef = if (category.id.isBlank()) {
                 firestore.collection("users").document(uid).collection("categories").document()
             } else {
                 firestore.collection("users").document(uid).collection("categories").document(category.id)
@@ -80,7 +80,7 @@ class ProductRepository(
             if (snapshot != null) {
                 val list = snapshot.documents.mapNotNull { doc ->
                     val nama = doc.getString("nama") ?: ""
-                    val harga = doc.getDouble("harga") ?: 0.0
+                    val hargaDoc = doc.getDouble("harga") ?: 0.0
                     val kategoriId = doc.getString("kategoriId") ?: ""
                     val fotoUrl = doc.getString("fotoUrl")
                     val deskripsi = doc.getString("deskripsi") ?: ""
@@ -89,16 +89,18 @@ class ProductRepository(
                     val aktif = doc.getBoolean("aktif") ?: true
 
                     val varianList = (doc.get("varian") as? List<Map<String, Any>>)?.map { v ->
-                        ProductVariant(
-                            nama = v["nama"] as? String ?: "",
-                            tambahanHarga = (v["tambahanHarga"] as? Number)?.toDouble() ?: 0.0
-                        )
+                        val vNama = v["nama"] as? String ?: ""
+                        val vHarga = (v["harga"] as? Number)?.toDouble()
+                            ?: ((v["tambahanHarga"] as? Number)?.toDouble() ?: 0.0)
+                        ProductVariant(nama = vNama, harga = vHarga)
                     } ?: emptyList()
+
+                    val finalHarga = if (varianList.isNotEmpty()) varianList.first().harga else hargaDoc
 
                     Product(
                         id = doc.id,
                         nama = nama,
-                        harga = harga,
+                        harga = finalHarga,
                         kategoriId = kategoriId,
                         fotoUrl = fotoUrl,
                         deskripsi = deskripsi,
@@ -116,19 +118,21 @@ class ProductRepository(
 
     suspend fun saveProduct(uid: String, product: Product): Result<Unit> {
         return try {
-            val docRef = if (product.id.isEmpty()) {
+            val docRef = if (product.id.isBlank()) {
                 firestore.collection("users").document(uid).collection("products").document()
             } else {
                 firestore.collection("users").document(uid).collection("products").document(product.id)
             }
 
             val varianMapList = product.varian.map { v ->
-                mapOf("nama" to v.nama, "tambahanHarga" to v.tambahanHarga)
+                mapOf("nama" to v.nama, "harga" to v.harga)
             }
+
+            val baseHarga = product.varian.firstOrNull()?.harga ?: product.harga
 
             val data = mapOf(
                 "nama" to product.nama,
-                "harga" to product.harga,
+                "harga" to baseHarga,
                 "kategoriId" to product.kategoriId,
                 "fotoUrl" to product.fotoUrl,
                 "deskripsi" to product.deskripsi,

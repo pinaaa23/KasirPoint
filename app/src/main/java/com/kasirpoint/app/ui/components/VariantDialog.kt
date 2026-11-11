@@ -92,14 +92,13 @@ fun VariantDialog(
                                     color = TextDark
                                 )
                             )
-                            if (variant.tambahanHarga > 0) {
-                                Text(
-                                    text = "+${CurrencyFormatter.formatRupiah(variant.tambahanHarga)}",
-                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                        color = TextMuted
-                                    )
+                            Text(
+                                text = CurrencyFormatter.formatRupiah(variant.harga),
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextDark
                                 )
-                            }
+                            )
                         }
                     }
                 }

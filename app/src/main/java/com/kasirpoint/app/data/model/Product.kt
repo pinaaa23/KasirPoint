@@ -11,4 +11,7 @@ data class Product(
     val pakaiStok: Boolean = false,
     val stok: Int = 0,
     val aktif: Boolean = true
-)
+) {
+    val hargaDisplay: Double
+        get() = if (varian.isNotEmpty()) varian.first().harga else harga
+}

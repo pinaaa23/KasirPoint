@@ -1,5 +1,6 @@
 package com.kasirpoint.app.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -19,10 +20,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -38,6 +41,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -58,7 +62,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -70,6 +78,7 @@ import com.kasirpoint.app.ui.components.EmptyState
 import com.kasirpoint.app.ui.components.SearchFilterBar
 import com.kasirpoint.app.ui.theme.ActionBrown
 import com.kasirpoint.app.ui.theme.BackgroundPeach
+import com.kasirpoint.app.ui.theme.BorderLight
 import com.kasirpoint.app.ui.theme.ChipPeach
 import com.kasirpoint.app.ui.theme.PrimaryOrange
 import com.kasirpoint.app.ui.theme.RedDanger
@@ -107,7 +116,7 @@ fun ProdukScreen(
             .padding(16.dp)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Header Title & Actions
+            // Header Title & Distinct Contrast Action Buttons
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -121,14 +130,20 @@ fun ProdukScreen(
                 )
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Clearly Visible Category Button with Distinct Border & Contrast
                     OutlinedButton(
                         onClick = { showCategoryDialog = true },
                         shape = CircleShape,
+                        border = BorderStroke(1.5.dp, ActionBrown),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = ChipPeach,
+                            contentColor = ActionBrown
+                        ),
                         modifier = Modifier.height(44.dp)
                     ) {
-                        Icon(imageVector = Icons.Default.Category, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(imageVector = Icons.Default.Category, contentDescription = null, modifier = Modifier.size(18.dp), tint = ActionBrown)
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Kategori")
+                        Text("Kategori", fontWeight = FontWeight.Bold)
                     }
 
                     Button(
@@ -210,6 +225,10 @@ fun ProdukScreen(
                 onSave = { prod ->
                     onSaveProduct(prod)
                     showAddEditProductDialog = false
+                },
+                onQuickAddCategory = { newCatName ->
+                    val newCat = Category(id = "", nama = newCatName, urutan = categories.size + 1)
+                    onSaveCategory(newCat)
                 }
             )
         }
@@ -293,9 +312,10 @@ private fun ProductManagementRow(
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    val priceDisplay = if (product.varian.isNotEmpty()) product.varian.first().harga else product.harga
                     Text(
-                        text = CurrencyFormatter.formatRupiah(product.harga),
-                        style = MaterialTheme.typography.bodyMedium.copy(color = TextDark)
+                        text = CurrencyFormatter.formatRupiah(priceDisplay),
+                        style = MaterialTheme.typography.bodyMedium.copy(color = TextDark, fontWeight = FontWeight.SemiBold)
                     )
                     if (categoryName.isNotEmpty()) {
                         Text(
@@ -323,10 +343,10 @@ private fun ProductFormDialog(
     product: Product?,
     categories: List<Category>,
     onDismiss: () -> Unit,
-    onSave: (Product) -> Unit
+    onSave: (Product) -> Unit,
+    onQuickAddCategory: (String) -> Unit
 ) {
     var nama by remember { mutableStateOf(product?.nama ?: "") }
-    var hargaText by remember { mutableStateOf(if ((product?.harga ?: 0.0) > 0) product?.harga?.toInt()?.toString() ?: "" else "") }
     var selectedCategoryId by remember { mutableStateOf(product?.kategoriId ?: "") }
     var deskripsi by remember { mutableStateOf(product?.deskripsi ?: "") }
     var pakaiStok by remember { mutableStateOf(product?.pakaiStok ?: false) }
@@ -334,14 +354,21 @@ private fun ProductFormDialog(
 
     val variants = remember {
         mutableStateListOf<ProductVariant>().apply {
-            if (product != null) addAll(product.varian)
+            if (product != null && product.varian.isNotEmpty()) {
+                addAll(product.varian)
+            } else if (product != null) {
+                add(ProductVariant("Regular", product.harga))
+            }
         }
     }
 
     var newVariantNama by remember { mutableStateOf("") }
     var newVariantHargaText by remember { mutableStateOf("") }
     var categoryDropdownExpanded by remember { mutableStateOf(false) }
+    var showInlineCategoryAdd by remember { mutableStateOf(false) }
+    var inlineCategoryName by remember { mutableStateOf("") }
 
+    val variantNameFocusRequester = remember { FocusRequester() }
     val scrollState = rememberScrollState()
 
     Dialog(onDismissRequest = onDismiss) {
@@ -363,6 +390,35 @@ private fun ProductFormDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // Photo Upload Section (Optional) at Top
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(100.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(ChipPeach.copy(alpha = 0.5f))
+                        .border(1.dp, PrimaryOrange, RoundedCornerShape(16.dp))
+                        .clickable { /* Photo picker placeholder */ },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Default.AddAPhoto,
+                            contentDescription = "Foto Produk",
+                            tint = PrimaryOrange,
+                            modifier = Modifier.size(28.dp)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Foto Produk (Opsional)",
+                            style = MaterialTheme.typography.labelMedium.copy(color = TextDark)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Product Name Field
                 OutlinedTextField(
                     value = nama,
                     onValueChange = { nama = it },
@@ -375,20 +431,7 @@ private fun ProductFormDialog(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                OutlinedTextField(
-                    value = hargaText,
-                    onValueChange = { hargaText = it },
-                    label = { Text("Harga (Rp)") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    shape = CircleShape,
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = PrimaryOrange),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Category Dropdown
+                // Category Dropdown with High Contrast Colors & Quick Add
                 ExposedDropdownMenuBox(
                     expanded = categoryDropdownExpanded,
                     onExpandedChange = { categoryDropdownExpanded = !categoryDropdownExpanded }
@@ -398,10 +441,15 @@ private fun ProductFormDialog(
                         value = selectedCategoryName,
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Kategori") },
+                        label = { Text("Kategori Produk") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryDropdownExpanded) },
                         shape = CircleShape,
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = PrimaryOrange),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = PrimaryOrange,
+                            unfocusedBorderColor = BorderLight,
+                            focusedTextColor = TextDark,
+                            unfocusedTextColor = TextDark
+                        ),
                         modifier = Modifier
                             .menuAnchor()
                             .fillMaxWidth()
@@ -409,16 +457,78 @@ private fun ProductFormDialog(
 
                     ExposedDropdownMenu(
                         expanded = categoryDropdownExpanded,
-                        onDismissRequest = { categoryDropdownExpanded = false }
+                        onDismissRequest = { categoryDropdownExpanded = false },
+                        modifier = Modifier.background(SurfaceWhite)
                     ) {
                         categories.forEach { category ->
                             DropdownMenuItem(
-                                text = { Text(category.nama) },
+                                text = {
+                                    Text(
+                                        text = category.nama,
+                                        style = MaterialTheme.typography.bodyLarge.copy(
+                                            color = TextDark,
+                                            fontWeight = if (category.id == selectedCategoryId) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    )
+                                },
                                 onClick = {
                                     selectedCategoryId = category.id
                                     categoryDropdownExpanded = false
-                                }
+                                },
+                                modifier = Modifier.background(
+                                    if (category.id == selectedCategoryId) ChipPeach else SurfaceWhite
+                                )
                             )
+                        }
+
+                        HorizontalDivider(color = BorderLight)
+
+                        // Quick Add Category Option inside Dropdown
+                        DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(imageVector = Icons.Default.Add, contentDescription = null, tint = PrimaryOrange, modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("+ Tambah Kategori Baru", style = MaterialTheme.typography.bodyLarge.copy(color = PrimaryOrange, fontWeight = FontWeight.Bold))
+                                }
+                            },
+                            onClick = {
+                                categoryDropdownExpanded = false
+                                showInlineCategoryAdd = true
+                            }
+                        )
+                    }
+                }
+
+                // Inline Quick Category Add Form
+                if (showInlineCategoryAdd) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = inlineCategoryName,
+                            onValueChange = { inlineCategoryName = it },
+                            placeholder = { Text("Nama Kategori Baru") },
+                            singleLine = true,
+                            shape = CircleShape,
+                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = PrimaryOrange),
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                if (inlineCategoryName.isNotBlank()) {
+                                    onQuickAddCategory(inlineCategoryName)
+                                    inlineCategoryName = ""
+                                    showInlineCategoryAdd = false
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryOrange),
+                            shape = CircleShape
+                        ) {
+                            Text("Simpan")
                         }
                     }
                 }
@@ -437,25 +547,40 @@ private fun ProductFormDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Variants Section
-                Text("Varian Produk (Opsional)", style = MaterialTheme.typography.titleMedium)
+                // Product Variants Section with Intuitive UI
+                Text("Varian & Harga Produk", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("Tambahkan varian produk beserta harganya (contoh: Regular - Rp15.000, Large - Rp18.000).", style = MaterialTheme.typography.bodyMedium)
                 Spacer(modifier = Modifier.height(8.dp))
 
+                // Added Variants List
                 variants.forEachIndexed { index, v ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 2.dp),
+                            .padding(vertical = 4.dp)
+                            .clip(CircleShape)
+                            .background(ChipPeach)
+                            .padding(horizontal = 16.dp, vertical = 6.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("• ${v.nama}" + if (v.tambahanHarga > 0) " (+${CurrencyFormatter.formatRupiah(v.tambahanHarga)})" else "")
-                        IconButton(onClick = { variants.removeAt(index) }) {
-                            Icon(imageVector = Icons.Default.Close, contentDescription = "Hapus", tint = RedDanger)
+                        Text(
+                            text = "${v.nama} — ${CurrencyFormatter.formatRupiah(v.harga)}",
+                            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold, color = TextDark)
+                        )
+                        IconButton(
+                            onClick = { variants.removeAt(index) },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(imageVector = Icons.Default.Close, contentDescription = "Hapus Varian", tint = RedDanger, modifier = Modifier.size(18.dp))
                         }
                     }
                 }
 
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // New Variant Entry Form
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -463,59 +588,86 @@ private fun ProductFormDialog(
                     OutlinedTextField(
                         value = newVariantNama,
                         onValueChange = { newVariantNama = it },
-                        placeholder = { Text("Ukuran/Nama") },
+                        placeholder = { Text("Varian (Regular/Large)") },
                         singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                         shape = CircleShape,
-                        modifier = Modifier.weight(1f)
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = PrimaryOrange),
+                        modifier = Modifier
+                            .weight(1.2f)
+                            .focusRequester(variantNameFocusRequester)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     OutlinedTextField(
                         value = newVariantHargaText,
                         onValueChange = { newVariantHargaText = it },
-                        placeholder = { Text("+Rp") },
+                        placeholder = { Text("Harga (Rp)") },
                         singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = {
+                            if (newVariantNama.isNotBlank() && newVariantHargaText.isNotBlank()) {
+                                val price = newVariantHargaText.toDoubleOrNull() ?: 0.0
+                                variants.add(ProductVariant(nama = newVariantNama, harga = price))
+                                newVariantNama = ""
+                                newVariantHargaText = ""
+                                variantNameFocusRequester.requestFocus()
+                            }
+                        }),
                         shape = CircleShape,
-                        modifier = Modifier.weight(0.8f)
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = PrimaryOrange),
+                        modifier = Modifier.weight(1f)
                     )
-                    IconButton(onClick = {
-                        if (newVariantNama.isNotBlank()) {
-                            variants.add(
-                                ProductVariant(
-                                    nama = newVariantNama,
-                                    tambahanHarga = newVariantHargaText.toDoubleOrNull() ?: 0.0
-                                )
-                            )
-                            newVariantNama = ""
-                            newVariantHargaText = ""
-                        }
-                    }) {
-                        Icon(imageVector = Icons.Default.Add, contentDescription = "Tambah Varian", tint = PrimaryOrange)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    IconButton(
+                        onClick = {
+                            if (newVariantNama.isNotBlank()) {
+                                val price = newVariantHargaText.toDoubleOrNull() ?: 0.0
+                                variants.add(ProductVariant(nama = newVariantNama, harga = price))
+                                newVariantNama = ""
+                                newVariantHargaText = ""
+                                variantNameFocusRequester.requestFocus()
+                            }
+                        },
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(PrimaryOrange)
+                    ) {
+                        Icon(imageVector = Icons.Default.Add, contentDescription = "Tambah Varian", tint = SurfaceWhite)
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
-                // Stock Toggle
+                // High Contrast Stock Toggle Switch
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(ChipPeach.copy(alpha = 0.4f))
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Gunakan Stok", style = MaterialTheme.typography.bodyLarge)
+                    Text("Gunakan Stok Produk", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold, color = TextDark))
                     Switch(
                         checked = pakaiStok,
                         onCheckedChange = { pakaiStok = it },
-                        colors = SwitchDefaults.colors(checkedThumbColor = PrimaryOrange)
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = SurfaceWhite,
+                            checkedTrackColor = PrimaryOrange,
+                            uncheckedThumbColor = TextMuted,
+                            uncheckedTrackColor = BorderLight
+                        )
                     )
                 }
 
                 if (pakaiStok) {
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
                     OutlinedTextField(
                         value = stokText,
                         onValueChange = { stokText = it },
-                        label = { Text("Jumlah Stok") },
+                        label = { Text("Jumlah Stok Saat Ini") },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         shape = CircleShape,
@@ -534,13 +686,19 @@ private fun ProductFormDialog(
                     Spacer(modifier = Modifier.width(8.dp))
                     Button(
                         onClick = {
+                            val finalVariants = if (variants.isEmpty() && nama.isNotBlank()) {
+                                listOf(ProductVariant("Regular", 0.0))
+                            } else {
+                                variants.toList()
+                            }
+                            val basePrice = finalVariants.firstOrNull()?.harga ?: 0.0
                             val newProd = Product(
                                 id = product?.id ?: "",
                                 nama = nama,
-                                harga = hargaText.toDoubleOrNull() ?: 0.0,
+                                harga = basePrice,
                                 kategoriId = selectedCategoryId,
                                 deskripsi = deskripsi,
-                                varian = variants.toList(),
+                                varian = finalVariants,
                                 pakaiStok = pakaiStok,
                                 stok = stokText.toIntOrNull() ?: 0
                             )
@@ -549,7 +707,7 @@ private fun ProductFormDialog(
                         colors = ButtonDefaults.buttonColors(containerColor = ActionBrown),
                         shape = CircleShape
                     ) {
-                        Text("Simpan", style = MaterialTheme.typography.labelLarge)
+                        Text("Simpan Produk", style = MaterialTheme.typography.labelLarge)
                     }
                 }
             }

@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -140,7 +139,7 @@ fun KasirScreen(
                         contentPadding = PaddingValues(bottom = if (!showSideCartPanel && cartItems.isNotEmpty()) 80.dp else 16.dp),
                         modifier = Modifier.weight(1f)
                     ) {
-                        items(filteredProducts) { product ->
+                        items(filteredProducts, key = { it.id.ifEmpty { it.hashCode().toString() } }) { product ->
                             ProductCard(
                                 product = product,
                                 onAddToCart = { prod, variant, qty ->
