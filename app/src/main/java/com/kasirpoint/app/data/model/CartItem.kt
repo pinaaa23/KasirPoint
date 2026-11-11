@@ -6,7 +6,7 @@ data class CartItem(
     val jumlah: Int = 1
 ) {
     val hargaSatuan: Double
-        get() = product.harga + (selectedVariant?.tambahanHarga ?: 0.0)
+        get() = selectedVariant?.harga ?: product.harga
 
     val totalHarga: Double
         get() = hargaSatuan * jumlah
