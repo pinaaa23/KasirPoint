@@ -1,11 +1,15 @@
 package com.kasirpoint.app.ui.components
 
+import android.graphics.BitmapFactory
+import android.util.Base64
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -35,6 +39,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -60,6 +66,26 @@ fun ProductCard(
     var quantity by remember { mutableIntStateOf(1) }
     val isOutOfStock = product.pakaiStok && product.stok <= 0
 
+    val priceDisplay = if (product.varian.isNotEmpty()) product.varian.first().harga else product.harga
+
+    val photoBitmap = remember(product.fotoUrl) {
+        if (!product.fotoUrl.isNullOrEmpty()) {
+            try {
+                if (product.fotoUrl.startsWith("data:image")) {
+                    val cleanBase64 = product.fotoUrl.substringAfter("base64,")
+                    val decodedBytes = Base64.decode(cleanBase64, Base64.DEFAULT)
+                    BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)?.asImageBitmap()
+                } else {
+                    null
+                }
+            } catch (_: Exception) {
+                null
+            }
+        } else {
+            null
+        }
+    }
+
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
@@ -69,7 +95,7 @@ fun ProductCard(
         Column(
             modifier = Modifier.padding(12.dp)
         ) {
-            // Product Image / Placeholder
+            // Product Image or Placeholder
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -78,12 +104,21 @@ fun ProductCard(
                     .background(ChipPeach.copy(alpha = 0.6f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.LocalCafe,
-                    contentDescription = null,
-                    tint = PrimaryOrange,
-                    modifier = Modifier.size(48.dp)
-                )
+                if (photoBitmap != null) {
+                    Image(
+                        bitmap = photoBitmap,
+                        contentDescription = product.nama,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.LocalCafe,
+                        contentDescription = null,
+                        tint = PrimaryOrange,
+                        modifier = Modifier.size(48.dp)
+                    )
+                }
 
                 if (isOutOfStock) {
                     Surface(
@@ -119,7 +154,7 @@ fun ProductCard(
                     modifier = Modifier.weight(1f)
                 )
                 Text(
-                    text = CurrencyFormatter.formatRupiah(product.harga),
+                    text = CurrencyFormatter.formatRupiah(priceDisplay),
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
                         color = TextDark
@@ -212,7 +247,6 @@ fun ProductCard(
                 // Add to Cart Button
                 Button(
                     onClick = {
-                        // If product has variants, pass null as variant to prompt VariantDialog
                         val selectedVariant = if (product.varian.isNotEmpty()) null else null
                         onAddToCart(product, selectedVariant, quantity)
                     },
@@ -244,7 +278,7 @@ fun ProductCardPreview() {
                 nama = "Cappuccino",
                 harga = 18000.0,
                 deskripsi = "Espresso segar dengan susu hangat dan busa lembut.",
-                varian = listOf(ProductVariant("Small"), ProductVariant("Large", 3000.0))
+                varian = listOf(ProductVariant("Small", 15000.0), ProductVariant("Large", 18000.0))
             ),
             onAddToCart = { _, _, _ -> },
             modifier = Modifier.width(260.dp)

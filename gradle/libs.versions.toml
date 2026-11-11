@@ -10,6 +10,8 @@ material3WindowSizeClass = "1.3.0"
 firebaseBom = "33.9.0"
 googleServices = "4.4.2"
 coroutinesPlayServices = "1.8.1"
+coil = "2.7.0"
+exifinterface = "1.3.7"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -26,6 +28,11 @@ androidx-material3 = { group = "androidx.compose.material3", name = "material3" 
 androidx-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
 androidx-material3-windowsize = { group = "androidx.compose.material3", name = "material3-window-size-class", version.ref = "material3WindowSizeClass" }
+
+exifinterface = { group = "androidx.exifinterface", name = "exifinterface", version.ref = "exifinterface" }
+
+# Coil for Compose Image Loading
+coil = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
 
 # Coroutines Play Services (.await() for Tasks)
 kotlinx-coroutines-playservices = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-play-services", version.ref = "coroutinesPlayServices" }

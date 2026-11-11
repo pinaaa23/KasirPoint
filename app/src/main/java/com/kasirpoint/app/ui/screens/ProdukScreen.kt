@@ -1,6 +1,13 @@
 package com.kasirpoint.app.ui.screens
 
+import android.graphics.BitmapFactory
+import android.graphics.Bitmap
+import android.net.Uri
+import android.util.Base64
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -26,11 +33,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddAPhoto
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LocalCafe
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Store
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -65,6 +74,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -86,6 +98,7 @@ import com.kasirpoint.app.ui.theme.SurfaceWhite
 import com.kasirpoint.app.ui.theme.TextDark
 import com.kasirpoint.app.ui.theme.TextMuted
 import com.kasirpoint.app.util.CurrencyFormatter
+import com.kasirpoint.app.util.ImageCompressor
 
 @Composable
 fun ProdukScreen(
@@ -116,7 +129,7 @@ fun ProdukScreen(
             .padding(16.dp)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Header Title & Distinct Contrast Action Buttons
+            // Header Title & Action Buttons
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -130,7 +143,7 @@ fun ProdukScreen(
                 )
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // Clearly Visible Category Button with Distinct Border & Contrast
+                    // Category Button with Distinct Border & Explicit ActionBrown Text Color
                     OutlinedButton(
                         onClick = { showCategoryDialog = true },
                         shape = CircleShape,
@@ -143,7 +156,7 @@ fun ProdukScreen(
                     ) {
                         Icon(imageVector = Icons.Default.Category, contentDescription = null, modifier = Modifier.size(18.dp), tint = ActionBrown)
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Kategori", fontWeight = FontWeight.Bold)
+                        Text(text = "Kategori", color = ActionBrown, fontWeight = FontWeight.Bold)
                     }
 
                     Button(
@@ -277,6 +290,24 @@ private fun ProductManagementRow(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
+    val photoBitmap = remember(product.fotoUrl) {
+        if (!product.fotoUrl.isNullOrEmpty()) {
+            try {
+                if (product.fotoUrl.startsWith("data:image")) {
+                    val cleanBase64 = product.fotoUrl.substringAfter("base64,")
+                    val decodedBytes = Base64.decode(cleanBase64, Base64.DEFAULT)
+                    BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)?.asImageBitmap()
+                } else {
+                    null
+                }
+            } catch (_: Exception) {
+                null
+            }
+        } else {
+            null
+        }
+    }
+
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
@@ -296,12 +327,21 @@ private fun ProductManagementRow(
                     .background(ChipPeach),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.LocalCafe,
-                    contentDescription = null,
-                    tint = PrimaryOrange,
-                    modifier = Modifier.size(24.dp)
-                )
+                if (photoBitmap != null) {
+                    Image(
+                        bitmap = photoBitmap,
+                        contentDescription = product.nama,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.LocalCafe,
+                        contentDescription = null,
+                        tint = PrimaryOrange,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(12.dp))
@@ -346,11 +386,38 @@ private fun ProductFormDialog(
     onSave: (Product) -> Unit,
     onQuickAddCategory: (String) -> Unit
 ) {
+    val context = LocalContext.current
+
     var nama by remember { mutableStateOf(product?.nama ?: "") }
     var selectedCategoryId by remember { mutableStateOf(product?.kategoriId ?: "") }
     var deskripsi by remember { mutableStateOf(product?.deskripsi ?: "") }
+    var photoBase64 by remember { mutableStateOf(product?.fotoUrl ?: "") }
     var pakaiStok by remember { mutableStateOf(product?.pakaiStok ?: false) }
     var stokText by remember { mutableStateOf(product?.stok?.toString() ?: "0") }
+
+    var showImageSourceDialog by remember { mutableStateOf(false) }
+
+    // Gallery Launcher
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            val compressed = ImageCompressor.compressUriToBase64(context, uri)
+            if (compressed != null) {
+                photoBase64 = compressed
+            }
+        }
+    }
+
+    // Camera Launcher
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicturePreview()
+    ) { bitmap: Bitmap? ->
+        if (bitmap != null) {
+            val compressed = ImageCompressor.compressBitmapToBase64(bitmap)
+            photoBase64 = compressed
+        }
+    }
 
     val variants = remember {
         mutableStateListOf<ProductVariant>().apply {
@@ -371,6 +438,20 @@ private fun ProductFormDialog(
     val variantNameFocusRequester = remember { FocusRequester() }
     val scrollState = rememberScrollState()
 
+    val photoBitmap = remember(photoBase64) {
+        if (photoBase64.startsWith("data:image")) {
+            try {
+                val cleanBase64 = photoBase64.substringAfter("base64,")
+                val decodedBytes = Base64.decode(cleanBase64, Base64.DEFAULT)
+                BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)?.asImageBitmap()
+            } catch (_: Exception) {
+                null
+            }
+        } else {
+            null
+        }
+    }
+
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(24.dp),
@@ -390,29 +471,38 @@ private fun ProductFormDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Photo Upload Section (Optional) at Top
+                // Photo Upload Box (Gallery & Camera Enabled)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(100.dp)
+                        .height(120.dp)
                         .clip(RoundedCornerShape(16.dp))
                         .background(ChipPeach.copy(alpha = 0.5f))
                         .border(1.dp, PrimaryOrange, RoundedCornerShape(16.dp))
-                        .clickable { /* Photo picker placeholder */ },
+                        .clickable { showImageSourceDialog = true },
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Default.AddAPhoto,
-                            contentDescription = "Foto Produk",
-                            tint = PrimaryOrange,
-                            modifier = Modifier.size(28.dp)
+                    if (photoBitmap != null) {
+                        Image(
+                            bitmap = photoBitmap,
+                            contentDescription = "Preview Foto Produk",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Foto Produk (Opsional)",
-                            style = MaterialTheme.typography.labelMedium.copy(color = TextDark)
-                        )
+                    } else {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Default.AddAPhoto,
+                                contentDescription = "Foto Produk",
+                                tint = PrimaryOrange,
+                                modifier = Modifier.size(32.dp)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Foto Produk (Opsional)",
+                                style = MaterialTheme.typography.labelMedium.copy(color = TextDark, fontWeight = FontWeight.Bold)
+                            )
+                        }
                     }
                 }
 
@@ -431,7 +521,7 @@ private fun ProductFormDialog(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Category Dropdown with High Contrast Colors & Quick Add
+                // Category Dropdown with High Contrast
                 ExposedDropdownMenuBox(
                     expanded = categoryDropdownExpanded,
                     onExpandedChange = { categoryDropdownExpanded = !categoryDropdownExpanded }
@@ -483,7 +573,6 @@ private fun ProductFormDialog(
 
                         HorizontalDivider(color = BorderLight)
 
-                        // Quick Add Category Option inside Dropdown
                         DropdownMenuItem(
                             text = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -547,13 +636,12 @@ private fun ProductFormDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Product Variants Section with Intuitive UI
+                // Variants Section
                 Text("Varian & Harga Produk", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
                 Spacer(modifier = Modifier.height(4.dp))
                 Text("Tambahkan varian produk beserta harganya (contoh: Regular - Rp15.000, Large - Rp18.000).", style = MaterialTheme.typography.bodyMedium)
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Added Variants List
                 variants.forEachIndexed { index, v ->
                     Row(
                         modifier = Modifier
@@ -580,7 +668,6 @@ private fun ProductFormDialog(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // New Variant Entry Form
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -639,7 +726,7 @@ private fun ProductFormDialog(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // High Contrast Stock Toggle Switch
+                // Stock Toggle
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -697,6 +784,7 @@ private fun ProductFormDialog(
                                 nama = nama,
                                 harga = basePrice,
                                 kategoriId = selectedCategoryId,
+                                fotoUrl = photoBase64.ifBlank { null },
                                 deskripsi = deskripsi,
                                 varian = finalVariants,
                                 pakaiStok = pakaiStok,
@@ -711,6 +799,71 @@ private fun ProductFormDialog(
                     }
                 }
             }
+        }
+
+        // Image Picker Options Dialog
+        if (showImageSourceDialog) {
+            AlertDialog(
+                onDismissRequest = { showImageSourceDialog = false },
+                title = { Text("Pilih Sumber Foto") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable {
+                                    showImageSourceDialog = false
+                                    galleryLauncher.launch("image/*")
+                                }
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(imageVector = Icons.Default.PhotoLibrary, contentDescription = null, tint = PrimaryOrange)
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text("Pilih dari Galeri HP", style = MaterialTheme.typography.bodyLarge)
+                        }
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable {
+                                    showImageSourceDialog = false
+                                    cameraLauncher.launch(null)
+                                }
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(imageVector = Icons.Default.CameraAlt, contentDescription = null, tint = PrimaryOrange)
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text("Ambil Foto dengan Kamera", style = MaterialTheme.typography.bodyLarge)
+                        }
+
+                        if (photoBase64.isNotEmpty()) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable {
+                                        showImageSourceDialog = false
+                                        photoBase64 = ""
+                                    }
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(imageVector = Icons.Default.Delete, contentDescription = null, tint = RedDanger)
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text("Hapus Foto Produk", style = MaterialTheme.typography.bodyLarge.copy(color = RedDanger))
+                            }
+                        }
+                    }
+                },
+                confirmButton = {},
+                dismissButton = {
+                    TextButton(onClick = { showImageSourceDialog = false }) { Text("Batal") }
+                }
+            )
         }
     }
 }
@@ -733,7 +886,7 @@ private fun CategoryFormDialog(
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
-                Text("Kelola Kategori", style = MaterialTheme.typography.titleMedium)
+                Text("Kelola Kategori Usaha", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold))
                 Spacer(modifier = Modifier.height(16.dp))
 
                 OutlinedTextField(
@@ -759,28 +912,49 @@ private fun CategoryFormDialog(
                     shape = CircleShape,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("+ Tambah Kategori")
+                    Text("+ Tambah Kategori Baru")
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Text("Daftar Kategori Saat Ini:", style = MaterialTheme.typography.titleMedium)
+                Text("Daftar Kategori Tersimpan:", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
                 Spacer(modifier = Modifier.height(8.dp))
 
                 if (categories.isEmpty()) {
                     Text("Belum ada kategori tersimpan.", style = MaterialTheme.typography.bodyMedium)
                 } else {
-                    categories.forEach { cat ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 2.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("• ${cat.nama}", style = MaterialTheme.typography.bodyLarge)
-                            IconButton(onClick = { categoryToDelete = cat }) {
-                                Icon(imageVector = Icons.Default.Delete, contentDescription = "Hapus Kategori", tint = RedDanger)
+                    LazyColumn(
+                        modifier = Modifier.height(180.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(categories) { cat ->
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = ChipPeach,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(imageVector = Icons.Default.Category, contentDescription = null, tint = PrimaryOrange, modifier = Modifier.size(18.dp))
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Text(
+                                            text = cat.nama,
+                                            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold, color = TextDark)
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = { categoryToDelete = cat },
+                                        modifier = Modifier.size(28.dp)
+                                    ) {
+                                        Icon(imageVector = Icons.Default.Delete, contentDescription = "Hapus Kategori", tint = RedDanger, modifier = Modifier.size(18.dp))
+                                    }
+                                }
                             }
                         }
                     }

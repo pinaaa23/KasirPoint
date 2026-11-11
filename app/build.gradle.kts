@@ -63,6 +63,10 @@ dependencies {
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.material3.windowsize)
+    implementation(libs.exifinterface)
+
+    // Coil for Compose Image Loading
+    implementation(libs.coil)
 
     // Coroutines Play Services (.await())
     implementation(libs.kotlinx.coroutines.playservices)
